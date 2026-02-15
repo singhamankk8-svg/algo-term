@@ -59,13 +59,13 @@ const TickerBar = ({ nseQuotes, usQuotes }) => {
 };
 
 const SectionHeader = ({ label, title }) => (
-  <div className="mb-10">
-    <div className="flex items-center gap-3 mb-3">
+  <div className="mb-12">
+    <div className="flex items-center gap-3 mb-4">
       <div className="h-px flex-1 bg-gradient-to-r from-bb-orange/50 to-transparent" />
-      <span className="text-bb-orange text-[10px] font-mono tracking-[0.3em] font-bold">{label}</span>
+      <span className="text-bb-orange text-xs font-mono tracking-[0.3em] font-bold">{label}</span>
       <div className="h-px flex-1 bg-gradient-to-l from-bb-orange/50 to-transparent" />
     </div>
-    <h2 className="text-3xl md:text-4xl font-black text-bb-text text-center tracking-tight font-mono">{title}</h2>
+    <h2 className="text-4xl md:text-5xl font-black text-bb-text text-center tracking-tight font-mono">{title}</h2>
   </div>
 );
 
@@ -115,19 +115,19 @@ const LiveStockCard = ({ quote, currency = '₹' }) => {
   if (!quote) return null;
   const isUp = quote.change_pct >= 0;
   return (
-    <div className="bg-bb-dark border border-bb-gray p-4 hover:border-bb-orange/50 transition-all">
-      <div className="flex justify-between items-start mb-2">
-        <span className="text-bb-orange font-mono font-bold text-sm">{quote.symbol?.replace('.NS', '')}</span>
-        <span className={`text-[10px] font-mono font-bold px-2 py-0.5 ${isUp ? 'bg-bb-green/10 text-bb-green' : 'bg-bb-red/10 text-bb-red'}`}>
+    <div className="bg-bb-dark border border-bb-gray p-5 hover:border-bb-orange/50 transition-all">
+      <div className="flex justify-between items-start mb-3">
+        <span className="text-bb-orange font-mono font-bold text-base">{quote.symbol?.replace('.NS', '')}</span>
+        <span className={`text-xs font-mono font-bold px-2.5 py-1 ${isUp ? 'bg-bb-green/10 text-bb-green' : 'bg-bb-red/10 text-bb-red'}`}>
           {isUp ? '+' : ''}{quote.change_pct}%
         </span>
       </div>
-      <div className="text-xl font-mono font-bold text-bb-text tabular-nums mb-1">{currency}{quote.price?.toLocaleString()}</div>
-      <div className={`text-[10px] font-mono flex items-center gap-1 ${isUp ? 'text-bb-green' : 'text-bb-red'}`}>
-        {isUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+      <div className="text-2xl font-mono font-bold text-bb-text tabular-nums mb-2">{currency}{quote.price?.toLocaleString()}</div>
+      <div className={`text-xs font-mono flex items-center gap-1 ${isUp ? 'text-bb-green' : 'text-bb-red'}`}>
+        {isUp ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
         {isUp ? '+' : ''}{currency}{quote.change}
       </div>
-      <div className="mt-2 flex gap-3 text-[9px] font-mono text-bb-muted">
+      <div className="mt-3 flex gap-4 text-[11px] font-mono text-bb-muted">
         <span>H: {currency}{quote.high}</span>
         <span>L: {currency}{quote.low}</span>
       </div>
@@ -138,21 +138,21 @@ const LiveStockCard = ({ quote, currency = '₹' }) => {
 const IndexCard = ({ name, value, change, changePct, status, flag }) => {
   const isUp = changePct >= 0;
   return (
-    <div className="bg-bb-dark border border-bb-gray p-5 hover:border-bb-orange/30 transition-all group">
-      <div className="flex justify-between items-start mb-3">
+    <div className="bg-bb-dark border border-bb-gray p-6 hover:border-bb-orange/30 transition-all group">
+      <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-2">
-          <span className="text-lg">{flag}</span>
-          <span className="text-xs font-bold text-bb-text tracking-wider">{name}</span>
+          <span className="text-xl">{flag}</span>
+          <span className="text-sm font-bold text-bb-text tracking-wider">{name}</span>
         </div>
-        <span className={`text-[9px] px-2 py-0.5 font-bold rounded ${status === 'OPEN' ? 'bg-bb-green/10 text-bb-green' : 'bg-bb-red/10 text-bb-red'}`}>
+        <span className={`text-[11px] px-2.5 py-1 font-bold rounded ${status === 'OPEN' ? 'bg-bb-green/10 text-bb-green' : 'bg-bb-red/10 text-bb-red'}`}>
           {status || '—'}
         </span>
       </div>
-      <div className="text-2xl font-mono font-bold text-bb-text tabular-nums mb-1">
+      <div className="text-3xl font-mono font-bold text-bb-text tabular-nums mb-2">
         {typeof value === 'number' ? value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
       </div>
-      <div className={`text-xs font-mono font-bold flex items-center gap-1 ${isUp ? 'text-bb-green' : 'text-bb-red'}`}>
-        {isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+      <div className={`text-sm font-mono font-bold flex items-center gap-1 ${isUp ? 'text-bb-green' : 'text-bb-red'}`}>
+        {isUp ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
         {isUp ? '+' : ''}{change?.toFixed(2)} ({isUp ? '+' : ''}{changePct?.toFixed(2)}%)
       </div>
     </div>
@@ -280,7 +280,7 @@ const LandingPage = () => {
       {/* ── Global Markets Overview ────────────────────────────── */}
       <section id="global-overview" className="landing-section py-16 px-4 md:px-12">
         <SectionHeader label="GLOBAL OVERVIEW" title="WORLD MARKETS" />
-        <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5">
           <IndexCard
             name="NIFTY 50" flag="🇮🇳"
             value={nseIndices?.nifty50?.value} change={nseIndices?.nifty50?.change} changePct={nseIndices?.nifty50?.change_pct}
@@ -329,7 +329,7 @@ const LandingPage = () => {
                     {nseMarket?.status || 'CLOSED'}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {nseMovers.map((q, i) => <LiveStockCard key={i} quote={q} currency="₹" />)}
                 </div>
               </div>
@@ -342,7 +342,7 @@ const LandingPage = () => {
                     {usMarket?.status || 'CLOSED'}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {usMovers.map((q, i) => <LiveStockCard key={i} quote={q} currency="$" />)}
                 </div>
               </div>
@@ -357,38 +357,38 @@ const LandingPage = () => {
       {/* ── Platform Architecture ──────────────────────────────── */}
       <section id="features" className="landing-section py-20 px-4 md:px-12 border-t border-bb-gray">
         <SectionHeader label="MODULES" title="PLATFORM ARCHITECTURE" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-          <div className="bg-bb-dark border border-bb-gray p-4 sm:p-8 hover:border-bb-orange/50 transition-all group cursor-pointer" onClick={() => navigate('/app/dashboard')}>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 border border-bb-gray group-hover:border-bb-orange/50 transition-colors"><LayoutDashboard size={20} className="text-bb-orange" /></div>
-              <div><h3 className="text-bb-text font-bold text-sm tracking-wider">DASHBOARD</h3><div className="text-[10px] text-bb-muted tracking-wider">MODULE 01</div></div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
+          <div className="bg-bb-dark border border-bb-gray p-6 sm:p-10 hover:border-bb-orange/50 transition-all group cursor-pointer" onClick={() => navigate('/app/dashboard')}>
+            <div className="flex items-center gap-4 mb-8">
+              <div className="p-3 border border-bb-gray group-hover:border-bb-orange/50 transition-colors"><LayoutDashboard size={24} className="text-bb-orange" /></div>
+              <div><h3 className="text-bb-text font-bold text-base tracking-wider">DASHBOARD</h3><div className="text-xs text-bb-muted tracking-wider">MODULE 01</div></div>
             </div>
-            <p className="text-bb-muted text-sm leading-relaxed mb-6">Real-time portfolio tracking with live P&L calculations, position management, and multi-symbol price feeds.</p>
-            <div className="border-t border-bb-gray pt-4 space-y-2 text-[11px] font-mono text-bb-muted">
+            <p className="text-bb-muted text-base leading-relaxed mb-8">Real-time portfolio tracking with live P&L calculations, position management, and multi-symbol price feeds.</p>
+            <div className="border-t border-bb-gray pt-5 space-y-3 text-sm font-mono text-bb-muted">
               <div className="flex justify-between"><span>Live P&L Calculator</span><span className="text-bb-green">ACTIVE</span></div>
               <div className="flex justify-between"><span>Auto-Refresh (30s)</span><span className="text-bb-green">ACTIVE</span></div>
               <div className="flex justify-between"><span>Multi-Quote Feeds</span><span className="text-bb-green">ACTIVE</span></div>
             </div>
           </div>
-          <div className="bg-bb-dark border border-bb-gray p-4 sm:p-8 hover:border-bb-orange/50 transition-all group cursor-pointer" onClick={() => navigate('/app/terminal')}>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 border border-bb-gray group-hover:border-bb-orange/50 transition-colors"><LineChart size={20} className="text-bb-orange" /></div>
-              <div><h3 className="text-bb-text font-bold text-sm tracking-wider">TRADING TERMINAL</h3><div className="text-[10px] text-bb-muted tracking-wider">MODULE 02</div></div>
+          <div className="bg-bb-dark border border-bb-gray p-6 sm:p-10 hover:border-bb-orange/50 transition-all group cursor-pointer" onClick={() => navigate('/app/terminal')}>
+            <div className="flex items-center gap-4 mb-8">
+              <div className="p-3 border border-bb-gray group-hover:border-bb-orange/50 transition-colors"><LineChart size={24} className="text-bb-orange" /></div>
+              <div><h3 className="text-bb-text font-bold text-base tracking-wider">TRADING TERMINAL</h3><div className="text-xs text-bb-muted tracking-wider">MODULE 02</div></div>
             </div>
-            <p className="text-bb-muted text-sm leading-relaxed mb-6">Full-featured trading with candlestick charts, smart symbol search, company fundamentals, and instant order execution.</p>
-            <div className="border-t border-bb-gray pt-4 space-y-2 text-[11px] font-mono text-bb-muted">
+            <p className="text-bb-muted text-base leading-relaxed mb-8">Full-featured trading with candlestick charts, smart symbol search, company fundamentals, and instant order execution.</p>
+            <div className="border-t border-bb-gray pt-5 space-y-3 text-sm font-mono text-bb-muted">
               <div className="flex justify-between"><span>NSE + US Markets</span><span className="text-bb-green">ACTIVE</span></div>
               <div className="flex justify-between"><span>Company Financials</span><span className="text-bb-green">ACTIVE</span></div>
               <div className="flex justify-between"><span>15s Price Refresh</span><span className="text-bb-green">ACTIVE</span></div>
             </div>
           </div>
-          <div className="bg-bb-dark border border-bb-gray p-4 sm:p-8 hover:border-bb-orange/50 transition-all group cursor-pointer" onClick={() => navigate('/app/research')}>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 border border-bb-gray group-hover:border-bb-orange/50 transition-colors"><BrainCircuit size={20} className="text-bb-orange" /></div>
-              <div><h3 className="text-bb-text font-bold text-sm tracking-wider">RESEARCH LAB</h3><div className="text-[10px] text-bb-muted tracking-wider">MODULE 03</div></div>
+          <div className="bg-bb-dark border border-bb-gray p-6 sm:p-10 hover:border-bb-orange/50 transition-all group cursor-pointer" onClick={() => navigate('/app/research')}>
+            <div className="flex items-center gap-4 mb-8">
+              <div className="p-3 border border-bb-gray group-hover:border-bb-orange/50 transition-colors"><BrainCircuit size={24} className="text-bb-orange" /></div>
+              <div><h3 className="text-bb-text font-bold text-base tracking-wider">RESEARCH LAB</h3><div className="text-xs text-bb-muted tracking-wider">MODULE 03</div></div>
             </div>
-            <p className="text-bb-muted text-sm leading-relaxed mb-6">Random Forest prediction engine with SMA backtesting, sentiment analysis, and company fundamentals research.</p>
-            <div className="border-t border-bb-gray pt-4 space-y-2 text-[11px] font-mono text-bb-muted">
+            <p className="text-bb-muted text-base leading-relaxed mb-8">Random Forest prediction engine with SMA backtesting, sentiment analysis, and company fundamentals research.</p>
+            <div className="border-t border-bb-gray pt-5 space-y-3 text-sm font-mono text-bb-muted">
               <div className="flex justify-between"><span>ML Predictions</span><span className="text-bb-green">ACTIVE</span></div>
               <div className="flex justify-between"><span>SMA Backtesting</span><span className="text-bb-green">ACTIVE</span></div>
               <div className="flex justify-between"><span>Sentiment Score</span><span className="text-bb-green">ACTIVE</span></div>
@@ -552,19 +552,19 @@ const LandingPage = () => {
       {/* ── Infrastructure ─────────────────────────────────────── */}
       <section className="landing-section py-20 px-4 md:px-12 border-t border-bb-gray">
         <SectionHeader label="INFRASTRUCTURE" title="SYSTEM ARCHITECTURE" />
-        <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-3 gap-5">
           {[
-            { icon: <Zap size={18} />, label: 'LOW LATENCY', desc: 'Sub-50ms order execution pipeline' },
-            { icon: <Lock size={18} />, label: 'RISK ENGINE', desc: 'Real-time position limits and exposure controls' },
-            { icon: <Database size={18} />, label: 'DATA PIPELINE', desc: 'Historical OHLC with yFinance integration' },
-            { icon: <Server size={18} />, label: 'FASTAPI BACKEND', desc: 'Async REST API with SQLAlchemy ORM' },
-            { icon: <BarChart3 size={18} />, label: 'BACKTESTING', desc: 'SMA crossover strategy simulation engine' },
-            { icon: <Globe size={18} />, label: 'DUAL MARKETS', desc: 'NSE + US equities with live price feeds' },
+            { icon: <Zap size={22} />, label: 'LOW LATENCY', desc: 'Sub-50ms order execution pipeline' },
+            { icon: <Lock size={22} />, label: 'RISK ENGINE', desc: 'Real-time position limits and exposure controls' },
+            { icon: <Database size={22} />, label: 'DATA PIPELINE', desc: 'Historical OHLC with yFinance integration' },
+            { icon: <Server size={22} />, label: 'FASTAPI BACKEND', desc: 'Async REST API with SQLAlchemy ORM' },
+            { icon: <BarChart3 size={22} />, label: 'BACKTESTING', desc: 'SMA crossover strategy simulation engine' },
+            { icon: <Globe size={22} />, label: 'DUAL MARKETS', desc: 'NSE + US equities with live price feeds' },
           ].map((item, i) => (
-            <div key={i} className="bg-bb-dark border border-bb-gray p-6 hover:border-bb-orange/30 transition-colors">
-              <div className="text-bb-orange mb-3">{item.icon}</div>
-              <div className="text-bb-text text-xs font-bold tracking-wider mb-2">{item.label}</div>
-              <div className="text-bb-muted text-[11px] leading-relaxed">{item.desc}</div>
+            <div key={i} className="bg-bb-dark border border-bb-gray p-8 hover:border-bb-orange/30 transition-colors">
+              <div className="text-bb-orange mb-4">{item.icon}</div>
+              <div className="text-bb-text text-sm font-bold tracking-wider mb-3">{item.label}</div>
+              <div className="text-bb-muted text-sm leading-relaxed">{item.desc}</div>
             </div>
           ))}
         </div>
