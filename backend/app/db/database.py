@@ -23,8 +23,10 @@ engine = create_async_engine(
     db_url,
     echo=False,
     future=True,
-    pool_size=10,
-    max_overflow=20,
+    pool_pre_ping=True,       # Test connections before use (fixes Neon idle drops)
+    pool_size=5,              # Reduced for Neon free tier limits
+    max_overflow=10,
+    pool_recycle=300,         # Refresh connections every 5 minutes
     connect_args=connect_args
 )
 
