@@ -165,6 +165,15 @@ const LandingPage = () => {
   const navigate = useNavigate();
   useIntersectionObserver();
 
+  // Force dark mode on landing page
+  useEffect(() => {
+    const wasDark = document.documentElement.classList.contains('dark');
+    document.documentElement.classList.add('dark');
+    return () => {
+      if (!wasDark) document.documentElement.classList.remove('dark');
+    };
+  }, []);
+
   const [nseQuotes, setNseQuotes] = useState([]);
   const [usQuotes, setUsQuotes] = useState([]);
   const [nseMovers, setNseMovers] = useState([]);
@@ -235,15 +244,15 @@ const LandingPage = () => {
         </p>
         <div className="animate-fade-in-up-delay-3 flex flex-col sm:flex-row gap-4">
           <button onClick={() => navigate('/app/dashboard')}
-            className="group flex items-center gap-3 bg-bb-orange text-black px-8 py-4 text-sm font-bold tracking-[0.2em] hover:bg-white transition-all duration-300">
+            className="group flex items-center gap-2 sm:gap-3 bg-bb-orange text-black px-5 sm:px-8 py-3 sm:py-4 text-xs sm:text-sm font-bold tracking-[0.2em] hover:bg-white transition-all duration-300">
             INITIALIZE TERMINAL <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
           </button>
           <a href="#features"
-            className="flex items-center gap-3 border border-bb-gray text-bb-muted px-8 py-4 text-sm font-bold tracking-[0.2em] hover:border-bb-orange hover:text-bb-orange transition-all duration-300">
+            className="flex items-center gap-2 sm:gap-3 border border-bb-gray text-bb-muted px-5 sm:px-8 py-3 sm:py-4 text-xs sm:text-sm font-bold tracking-[0.2em] hover:border-bb-orange hover:text-bb-orange transition-all duration-300">
             EXPLORE MODULES
           </a>
         </div>
-        <div className="mt-20 grid grid-cols-4 gap-8 text-center max-w-xl">
+        <div className="mt-12 sm:mt-20 grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-8 text-center max-w-xl">
           <div><div className="text-2xl font-mono font-black text-bb-text">1500+</div><div className="text-[10px] text-bb-muted tracking-widest mt-1">NSE STOCKS</div></div>
           <div><div className="text-2xl font-mono font-black text-bb-text">400+</div><div className="text-[10px] text-bb-muted tracking-widest mt-1">US STOCKS</div></div>
           <div><div className="text-2xl font-mono font-black text-bb-text">&lt;50ms</div><div className="text-[10px] text-bb-muted tracking-widest mt-1">AVG LATENCY</div></div>
@@ -332,7 +341,7 @@ const LandingPage = () => {
       <section id="features" className="landing-section py-20 px-4 md:px-12 border-t border-bb-gray">
         <SectionHeader label="MODULES" title="PLATFORM ARCHITECTURE" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-          <div className="bg-bb-dark border border-bb-gray p-8 hover:border-bb-orange/50 transition-all group cursor-pointer" onClick={() => navigate('/app/dashboard')}>
+          <div className="bg-bb-dark border border-bb-gray p-4 sm:p-8 hover:border-bb-orange/50 transition-all group cursor-pointer" onClick={() => navigate('/app/dashboard')}>
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 border border-bb-gray group-hover:border-bb-orange/50 transition-colors"><LayoutDashboard size={20} className="text-bb-orange" /></div>
               <div><h3 className="text-bb-text font-bold text-sm tracking-wider">DASHBOARD</h3><div className="text-[10px] text-bb-muted tracking-wider">MODULE 01</div></div>
@@ -344,7 +353,7 @@ const LandingPage = () => {
               <div className="flex justify-between"><span>Multi-Quote Feeds</span><span className="text-bb-green">ACTIVE</span></div>
             </div>
           </div>
-          <div className="bg-bb-dark border border-bb-gray p-8 hover:border-bb-orange/50 transition-all group cursor-pointer" onClick={() => navigate('/app/terminal')}>
+          <div className="bg-bb-dark border border-bb-gray p-4 sm:p-8 hover:border-bb-orange/50 transition-all group cursor-pointer" onClick={() => navigate('/app/terminal')}>
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 border border-bb-gray group-hover:border-bb-orange/50 transition-colors"><LineChart size={20} className="text-bb-orange" /></div>
               <div><h3 className="text-bb-text font-bold text-sm tracking-wider">TRADING TERMINAL</h3><div className="text-[10px] text-bb-muted tracking-wider">MODULE 02</div></div>
@@ -356,7 +365,7 @@ const LandingPage = () => {
               <div className="flex justify-between"><span>15s Price Refresh</span><span className="text-bb-green">ACTIVE</span></div>
             </div>
           </div>
-          <div className="bg-bb-dark border border-bb-gray p-8 hover:border-bb-orange/50 transition-all group cursor-pointer" onClick={() => navigate('/app/research')}>
+          <div className="bg-bb-dark border border-bb-gray p-4 sm:p-8 hover:border-bb-orange/50 transition-all group cursor-pointer" onClick={() => navigate('/app/research')}>
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 border border-bb-gray group-hover:border-bb-orange/50 transition-colors"><BrainCircuit size={20} className="text-bb-orange" /></div>
               <div><h3 className="text-bb-text font-bold text-sm tracking-wider">RESEARCH LAB</h3><div className="text-[10px] text-bb-muted tracking-wider">MODULE 03</div></div>

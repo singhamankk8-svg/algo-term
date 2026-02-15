@@ -783,11 +783,11 @@ const USTradingTerminal = () => {
                                 <span>Cap: {formatMarketCap(companyInfo?.market_cap)}</span>
                             </div>
                         </div>
-                        <div className="text-right">
-                            <div className="text-3xl font-bold font-mono flex items-center gap-2">
+                        <div className="text-right flex-shrink-0">
+                            <div className="text-xl sm:text-3xl font-bold font-mono flex items-center gap-1 sm:gap-2">
                                 ${currentPrice.toFixed(2)}
                                 {quote && (
-                                    <span className={`text-lg ${quote.change >= 0 ? 'text-bb-green' : 'text-bb-red'}`}>
+                                    <span className={`text-xs sm:text-lg ${quote.change >= 0 ? 'text-bb-green' : 'text-bb-red'}`}>
                                         {quote.change > 0 ? '+' : ''}{quote.change.toFixed(2)} ({quote.change_pct}%)
                                     </span>
                                 )}
@@ -795,7 +795,7 @@ const USTradingTerminal = () => {
                         </div>
                     </div>
 
-                    <div className="h-[500px] border-b border-bb-border relative">
+                    <div className="h-[350px] sm:h-[420px] lg:h-[500px] border-b border-bb-border relative">
                         <div className="absolute top-2 left-2 right-2 z-10 flex justify-between items-start flex-wrap gap-1">
                             <div className="bg-bb-card/90 backdrop-blur border border-bb-border rounded p-1 flex gap-0.5 shadow-sm">
                                 {TIMEFRAMES.map(tf => (
@@ -914,11 +914,54 @@ const USTradingTerminal = () => {
                         )}
                     </div>
 
-                    <div className="p-6">
-                        <div className="flex border-b border-bb-border mb-6">
+                    {/* Mobile Fixed Bottom Trade Bar */}
+                    <div className="lg:hidden fixed bottom-0 left-0 right-0 border-t border-bb-border bg-bb-card z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.3)]" style={{ paddingBottom: 'max(0.375rem, env(safe-area-inset-bottom))' }}>
+                        {/* Charges summary row */}
+                        <div className="px-2.5 pt-1.5 pb-1 flex items-center justify-between text-[10px]">
+                            <div className="flex items-center gap-3 text-bb-muted">
+                                <span>Value: <span className="text-bb-text font-bold">${orderValue}</span></span>
+                                <span>Charges: <span className="text-bb-orange font-bold">${chargesPreview?.total || '0.00'}</span></span>
+                            </div>
+                            <button onClick={() => { const el = document.getElementById('us-mobile-charges-detail'); if (el) el.classList.toggle('hidden'); }}
+                                className="text-bb-blue text-[9px] font-bold">Details ▾</button>
+                        </div>
+                        {/* Expandable charges detail */}
+                        <div id="us-mobile-charges-detail" className="hidden px-2.5 pb-1.5">
+                            <div className="bg-bb-bg rounded border border-bb-border/50 p-2 grid grid-cols-3 gap-x-3 gap-y-0.5 text-[9px] text-bb-muted">
+                                <div className="flex justify-between"><span>Commission</span><span>${chargesPreview?.commission || '0'}</span></div>
+                                <div className="flex justify-between"><span>SEC Fee</span><span>${chargesPreview?.sec_fee || '0'}</span></div>
+                                <div className="flex justify-between"><span>FINRA</span><span>${chargesPreview?.finra_taf || '0'}</span></div>
+                            </div>
+                        </div>
+                        {/* Trade controls */}
+                        <div className="flex items-center gap-2 px-2.5 pb-1.5">
+                            <div className="flex bg-bb-bg rounded p-0.5 flex-shrink-0">
+                                <button onClick={() => setProductType('INTRADAY')} className={`px-2 py-1 text-[10px] font-bold rounded ${productType === 'INTRADAY' ? 'bg-bb-blue text-white shadow' : 'text-bb-muted'}`}>DAY</button>
+                                <button onClick={() => setProductType('DELIVERY')} className={`px-2 py-1 text-[10px] font-bold rounded ${productType === 'DELIVERY' ? 'bg-bb-blue text-white shadow' : 'text-bb-muted'}`}>GTC</button>
+                            </div>
+                            <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)}
+                                className="w-16 bg-bb-bg border border-bb-border rounded px-2 py-1.5 font-bold text-center text-sm focus:border-bb-blue outline-none" placeholder="Qty" />
+                            <button onClick={() => handleTrade('BUY')} disabled={tradeLoading}
+                                className="flex-1 bg-bb-green hover:bg-bb-green/90 text-white py-2.5 rounded font-bold text-xs shadow-lg shadow-bb-green/20 flex items-center justify-center gap-1 disabled:opacity-60">
+                                {tradeLoading ? <Loader size={12} className="animate-spin" /> : null} BUY
+                            </button>
+                            <button onClick={() => handleTrade('SELL')} disabled={tradeLoading}
+                                className="flex-1 bg-bb-red hover:bg-bb-red/90 text-white py-2.5 rounded font-bold text-xs shadow-lg shadow-bb-red/20 flex items-center justify-center gap-1 disabled:opacity-60">
+                                {tradeLoading ? <Loader size={12} className="animate-spin" /> : null} SELL
+                            </button>
+                        </div>
+                        {tradeResult && (
+                            <div className={`mx-2.5 mb-1.5 p-1.5 rounded text-[10px] border ${tradeResult.success ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-red-500/10 border-red-500/20 text-red-500'}`}>
+                                {tradeResult.message}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="p-3 sm:p-6">
+                        <div className="flex border-b border-bb-border mb-4 sm:mb-6 overflow-x-auto">
                             {['Financials', 'Shareholding', 'Corporate Actions', 'Trade Info'].map(tab => (
                                 <button key={tab} onClick={() => scrollToSection(`sec-${tab.toLowerCase().replace(' ', '-')}`)}
-                                    className="px-6 py-2 text-sm font-medium text-bb-muted hover:text-bb-blue hover:border-b-2 hover:border-bb-blue transition-all">
+                                    className="px-3 sm:px-6 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-bb-muted hover:text-bb-blue hover:border-b-2 hover:border-bb-blue transition-all whitespace-nowrap flex-shrink-0">
                                     {tab}
                                 </button>
                             ))}
@@ -973,7 +1016,7 @@ const USTradingTerminal = () => {
                     </div>
                 </div>
 
-                <div className="lg:col-span-3 border-t lg:border-t-0 lg:border-l border-bb-border min-h-0 flex flex-col bg-bb-card overflow-y-auto custom-scrollbar">
+                <div className="hidden lg:flex lg:col-span-3 border-l border-bb-border min-h-0 flex-col bg-bb-card overflow-y-auto custom-scrollbar">
                     <div className="p-4">
                         <div className="flex bg-bb-bg rounded p-1 mb-4">
                             <button onClick={() => setProductType('INTRADAY')} className={`flex-1 py-1 text-xs font-bold rounded ${productType === 'INTRADAY' ? 'bg-bb-blue text-white shadow' : 'text-bb-muted'}`}>INTRADAY</button>

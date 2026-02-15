@@ -290,9 +290,9 @@ const Dashboard = () => {
           <button onClick={handleReset} className="text-xs text-bb-muted hover:text-bb-red transition-colors flex items-center gap-1">
             <RotateCcw size={12} /> Reset
           </button>
-          <button onClick={() => loadData(true)}
-            className={`text-xs text-bb-muted hover:text-bb-text transition-colors flex items-center gap-1 ${refreshing ? 'animate-spin' : ''}`}>
-            <RefreshCw size={13} /> {refreshing ? 'Refreshing...' : 'Refresh'}
+          <button onClick={() => loadData(true)} disabled={refreshing}
+            className="text-xs text-bb-muted hover:text-bb-text transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded border border-bb-border hover:border-bb-blue/50 disabled:opacity-60">
+            <RefreshCw size={13} className={refreshing ? 'animate-spin text-bb-blue' : ''} /> {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
       </div>
