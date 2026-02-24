@@ -3,6 +3,14 @@ import time
 import yfinance as yf
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import urllib.request
+import urllib.error
+import csv
+import json
+import io
+import logging
+
+_logger = logging.getLogger(__name__)
 
 NSE_STOCKS = [
     {"symbol": "RELIANCE.NS", "name": "Reliance Industries"},
@@ -24,7 +32,7 @@ NSE_STOCKS = [
     {"symbol": "TITAN.NS", "name": "Titan Company"},
     {"symbol": "BAJFINANCE.NS", "name": "Bajaj Finance"},
     {"symbol": "WIPRO.NS", "name": "Wipro"},
-    {"symbol": "TATAMOTORS.NS", "name": "Tata Motors"},
+    {"symbol": "TMPV.NS", "name": "Tata Motors"},
     {"symbol": "NTPC.NS", "name": "NTPC"},
     {"symbol": "POWERGRID.NS", "name": "Power Grid Corp"},
     {"symbol": "ONGC.NS", "name": "ONGC"},
@@ -402,6 +410,125 @@ def _set_cached_quote(symbol, data):
 
 
 
+# ---------------------------------------------------------------------------
+# Fallback data providers (used when yfinance is rate-limited / down)
+# ---------------------------------------------------------------------------
+
+def _fetch_quote_stooq(symbol: str) -> dict | None:
+    """Fetch a quote from Stooq CSV endpoint (free, no API key).
+    Works for US tickers (e.g. AAPL) and NSE tickers (e.g. RELIANCE.NS).
+    Returns a quote dict on success, None on failure.
+    """
+    try:
+        stooq_sym = symbol.lower().replace("-", ".")
+        url = f"https://stooq.com/q/l/?s={stooq_sym}&f=sd2t2ohlcv&h&e=csv"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            content = resp.read().decode("utf-8")
+        reader = csv.DictReader(io.StringIO(content))
+        rows = list(reader)
+        if not rows:
+            return None
+        row = rows[-1]  # most recent row
+        close = float(row.get("Close", 0) or 0)
+        opn   = float(row.get("Open",  0) or 0)
+        high  = float(row.get("High",  0) or 0)
+        low   = float(row.get("Low",   0) or 0)
+        vol   = int(float(row.get("Volume", 0) or 0))
+        if close == 0:
+            return None
+        # Stooq gives only one day; use open as prev_close proxy when prev unavailable
+        prev = opn if opn > 0 else close
+        change = round(close - prev, 2)
+        change_pct = round((change / prev * 100), 2) if prev else 0
+        return {
+            "symbol": symbol.upper(),
+            "price": round(close, 2),
+            "change": change,
+            "change_pct": change_pct,
+            "prev_close": round(prev, 2),
+            "open": round(opn, 2),
+            "high": round(high, 2),
+            "low": round(low, 2),
+            "volume": vol,
+            "source": "stooq",
+        }
+    except Exception as exc:
+        _logger.debug("Stooq fallback failed for %s: %s", symbol, exc)
+        return None
+
+
+def _fetch_quote_yahoo_json(symbol: str) -> dict | None:
+    """Fetch a quote via Yahoo Finance v8 chart API directly (plain HTTP, no yfinance lib).
+    Sometimes succeeds when the yfinance library is blocked due to cookie / session issues.
+    Returns a quote dict on success, None on failure.
+    """
+    try:
+        url = (
+            f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+            "?interval=1d&range=5d&includePrePost=false"
+        )
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0",
+                "Accept": "application/json",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+
+        result_data = data["chart"]["result"][0]
+        meta = result_data["meta"]
+        indicators = result_data["indicators"]["quote"][0]
+
+        closes = [c for c in indicators.get("close", []) if c is not None]
+        opens  = [o for o in indicators.get("open",  []) if o is not None]
+        highs  = [h for h in indicators.get("high",  []) if h is not None]
+        lows   = [l for l in indicators.get("low",   []) if l is not None]
+        vols   = [v for v in indicators.get("volume",[]) if v is not None]
+
+        if not closes:
+            return None
+
+        close = round(float(closes[-1]), 2)
+        prev  = round(float(closes[-2]), 2) if len(closes) > 1 else round(float(meta.get("chartPreviousClose", close)), 2)
+        opn   = round(float(opens[-1]),  2) if opens  else close
+        high  = round(float(highs[-1]),  2) if highs  else close
+        low   = round(float(lows[-1]),   2) if lows   else close
+        vol   = int(vols[-1]) if vols else 0
+        change = round(close - prev, 2)
+        change_pct = round((change / prev * 100), 2) if prev else 0
+        return {
+            "symbol": symbol.upper(),
+            "price": close,
+            "change": change,
+            "change_pct": change_pct,
+            "prev_close": prev,
+            "open": opn,
+            "high": high,
+            "low": low,
+            "volume": vol,
+            "source": "yahoo_json",
+        }
+    except Exception as exc:
+        _logger.debug("Yahoo JSON fallback failed for %s: %s", symbol, exc)
+        return None
+
+
+def _fetch_quote_fallback(symbol: str) -> dict | None:
+    """Try free fallback sources in order. Returns None if all fail."""
+    for fn in (_fetch_quote_stooq, _fetch_quote_yahoo_json):
+        result = fn(symbol)
+        if result and result.get("price", 0) > 0:
+            _logger.info("Fallback (%s) succeeded for %s", fn.__name__, symbol)
+            return result
+    return None
+
+
+# ---------------------------------------------------------------------------
+
+
 def _fetch_history_sync(symbol, period, interval):
     ticker = yf.Ticker(symbol)
     df = ticker.history(period=period, interval=interval)
@@ -424,20 +551,35 @@ def _fetch_quote_sync(symbol):
         high = float(info.day_high) if hasattr(info, 'day_high') else price
         low = float(info.day_low) if hasattr(info, 'day_low') else price
         volume = int(info.last_volume) if hasattr(info, 'last_volume') else 0
-    except Exception:
-        hist = ticker.history(period="5d")
-        if hist.empty:
-            fallback = {"symbol": symbol.upper(), "price": 0, "change": 0, "change_pct": 0,
-                        "prev_close": 0, "open": 0, "high": 0, "low": 0, "volume": 0}
-            return fallback
-        latest = hist.iloc[-1]
-        prev_row = hist.iloc[-2] if len(hist) > 1 else latest
-        price = round(float(latest['Close']), 2)
-        prev = round(float(prev_row['Close']), 2)
-        opn = round(float(latest['Open']), 2)
-        high = round(float(latest['High']), 2)
-        low = round(float(latest['Low']), 2)
-        volume = int(latest['Volume'])
+        # Guard against yfinance returning 0 for all fields (silent rate-limit)
+        if price == 0:
+            raise ValueError("yfinance returned zero price (likely rate-limited)")
+    except Exception as yf_err:
+        _logger.debug("yfinance fast_info failed for %s (%s), trying history...", symbol, yf_err)
+        try:
+            hist = ticker.history(period="5d")
+            if hist.empty:
+                raise ValueError("empty history")
+            latest = hist.iloc[-1]
+            prev_row = hist.iloc[-2] if len(hist) > 1 else latest
+            price = round(float(latest['Close']), 2)
+            prev = round(float(prev_row['Close']), 2)
+            opn = round(float(latest['Open']), 2)
+            high = round(float(latest['High']), 2)
+            low = round(float(latest['Low']), 2)
+            volume = int(latest['Volume'])
+            if price == 0:
+                raise ValueError("history also returned zero price")
+        except Exception as hist_err:
+            _logger.warning("yfinance fully failed for %s (%s), trying fallback providers...", symbol, hist_err)
+            fb = _fetch_quote_fallback(symbol)
+            if fb:
+                _set_cached_quote(symbol, fb)
+                return fb
+            # All sources failed — return zeros so the heatmap still renders
+            _logger.error("All data sources failed for %s, returning zeros", symbol)
+            return {"symbol": symbol.upper(), "price": 0, "change": 0, "change_pct": 0,
+                    "prev_close": 0, "open": 0, "high": 0, "low": 0, "volume": 0}
 
     change = round(price - prev, 2)
     change_pct = round((change / prev * 100), 2) if prev else 0
@@ -549,7 +691,12 @@ def _fetch_batch_quotes_sync(symbols):
     def _safe_fetch(sym):
         try:
             return sym, _fetch_quote_sync(sym)
-        except Exception:
+        except Exception as exc:
+            _logger.warning("_safe_fetch failed for %s: %s, trying fallback", sym, exc)
+            fb = _fetch_quote_fallback(sym)
+            if fb:
+                _set_cached_quote(sym, fb)
+                return sym, fb
             return sym, {"symbol": sym.upper(), "price": 0, "change": 0, "change_pct": 0,
                          "prev_close": 0, "open": 0, "high": 0, "low": 0, "volume": 0}
 
