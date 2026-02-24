@@ -398,12 +398,18 @@ US_STOCKS = [
 ]
 
 _quote_cache = {}
-_CACHE_TTL = 120
+_CACHE_TTL = 300       # 5 min fresh cache
+_CACHE_STALE_TTL = 900 # 15 min stale-while-revalidate
 
-def _get_cached_quote(symbol):
+def _get_cached_quote(symbol, allow_stale=False):
     entry = _quote_cache.get(symbol)
-    if entry and (time.time() - entry["ts"]) < _CACHE_TTL:
+    if not entry:
+        return None
+    age = time.time() - entry["ts"]
+    if age < _CACHE_TTL:
         return entry["data"]
+    if allow_stale and age < _CACHE_STALE_TTL:
+        return entry["data"]  # return stale data rather than zeroing
     return None
 
 def _set_cached_quote(symbol, data):
@@ -715,20 +721,32 @@ def _fetch_batch_quotes_sync(symbols):
 
     logger.info(f"Fetching {len(uncached)} uncached symbols concurrently...")
 
-    MAX_WORKERS = min(10, len(uncached))  # Cap at 10 to avoid rate limits
+    MAX_WORKERS = min(4, len(uncached))  # Low concurrency to avoid Railway rate-limits
     fetched = {}
 
     def _safe_fetch(sym):
+        # Try yfinance (already has internal fallback chain)
         try:
-            return sym, _fetch_quote_sync(sym)
+            result = _fetch_quote_sync(sym)
+            if result.get("price", 0) > 0:
+                return sym, result
         except Exception as exc:
-            _logger.warning("_safe_fetch failed for %s: %s, trying fallback", sym, exc)
-            fb = _fetch_quote_fallback(sym)
-            if fb:
-                _set_cached_quote(sym, fb)
-                return sym, fb
-            return sym, {"symbol": sym.upper(), "price": 0, "change": 0, "change_pct": 0,
-                         "prev_close": 0, "open": 0, "high": 0, "low": 0, "volume": 0}
+            _logger.warning("_safe_fetch yfinance failed for %s: %s", sym, exc)
+
+        # Try external fallbacks
+        fb = _fetch_quote_fallback(sym)
+        if fb and fb.get("price", 0) > 0:
+            _set_cached_quote(sym, fb)
+            return sym, fb
+
+        # Last resort: return stale cache if available rather than zeros
+        stale = _get_cached_quote(sym, allow_stale=True)
+        if stale and stale.get("price", 0) > 0:
+            _logger.info("Returning stale cache for %s", sym)
+            return sym, stale
+
+        return sym, {"symbol": sym.upper(), "price": 0, "change": 0, "change_pct": 0,
+                     "prev_close": 0, "open": 0, "high": 0, "low": 0, "volume": 0}
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         futures = {executor.submit(_safe_fetch, sym): sym for sym in uncached}
