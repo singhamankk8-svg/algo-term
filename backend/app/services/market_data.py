@@ -586,70 +586,65 @@ def _fetch_quote_sync(symbol):
         return cached
 
     ticker = yf.Ticker(symbol)
-    try:
-        info = ticker.fast_info
-        price_raw = getattr(info, 'last_price', None)
-        prev_raw  = getattr(info, 'previous_close', None)
-        opn_raw   = getattr(info, 'open', None)
-        high_raw  = getattr(info, 'day_high', None)
-        low_raw   = getattr(info, 'day_low', None)
-        vol_raw   = getattr(info, 'last_volume', None)
 
-        def _safe(v, fallback=0.0):
-            """Convert to float, treating None/NaN/Inf as fallback."""
-            try:
-                f = float(v)
-                return fallback if (math.isnan(f) or math.isinf(f)) else f
-            except Exception:
-                return fallback
-
-        price  = _safe(price_raw)
-        prev   = _safe(prev_raw, fallback=0.0)   # 0 means "unknown"
-        opn    = _safe(opn_raw,  fallback=price)
-        high   = _safe(high_raw, fallback=price)
-        low    = _safe(low_raw,  fallback=price)
-        volume = int(_safe(vol_raw, fallback=0))
-
-        if price == 0:
-            raise ValueError("yfinance returned zero price (likely rate-limited)")
-
-        # If previous_close is unknown (0/NaN), fetch 2-day history to get it
-        if prev == 0:
-            _logger.debug("previous_close unavailable for %s, fetching history for prev_close", symbol)
-            try:
-                hist = ticker.history(period="5d")
-                if not hist.empty and len(hist) >= 2:
-                    prev = round(float(hist.iloc[-2]['Close']), 2)
-                elif not hist.empty:
-                    prev = round(float(hist.iloc[-1]['Close']), 2)
-            except Exception:
-                prev = price  # fallback: change=0 is safer than wrong value
-    except Exception as yf_err:
-        _logger.debug("yfinance fast_info failed for %s (%s), trying history...", symbol, yf_err)
+    def _safe(v, fallback=0.0):
+        """Convert to float, treating None/NaN/Inf as fallback."""
         try:
-            hist = ticker.history(period="5d")
-            if hist.empty:
-                raise ValueError("empty history")
-            latest = hist.iloc[-1]
-            prev_row = hist.iloc[-2] if len(hist) > 1 else latest
-            price = round(float(latest['Close']), 2)
-            prev = round(float(prev_row['Close']), 2)
-            opn = round(float(latest['Open']), 2)
-            high = round(float(latest['High']), 2)
-            low = round(float(latest['Low']), 2)
-            volume = int(latest['Volume'])
-            if price == 0:
-                raise ValueError("history also returned zero price")
-        except Exception as hist_err:
-            _logger.warning("yfinance fully failed for %s (%s), trying fallback providers...", symbol, hist_err)
-            fb = _fetch_quote_fallback(symbol)
-            if fb:
-                _set_cached_quote(symbol, fb)
-                return fb
-            # All sources failed — return zeros so the heatmap still renders
-            _logger.error("All data sources failed for %s, returning zeros", symbol)
-            return {"symbol": symbol.upper(), "price": 0, "change": 0, "change_pct": 0,
-                    "prev_close": 0, "open": 0, "high": 0, "low": 0, "volume": 0}
+            f = float(v)
+            return fallback if (math.isnan(f) or math.isinf(f)) else f
+        except Exception:
+            return fallback
+
+    # Step 1: Try fast_info for the real-time price (most current)
+    price, opn, high, low, volume = 0, 0, 0, 0, 0
+    fast_info_ok = False
+    try:
+        info   = ticker.fast_info
+        price  = _safe(getattr(info, 'last_price',  None))
+        opn    = _safe(getattr(info, 'open',         None), fallback=price)
+        high   = _safe(getattr(info, 'day_high',     None), fallback=price)
+        low    = _safe(getattr(info, 'day_low',      None), fallback=price)
+        volume = int(_safe(getattr(info, 'last_volume', None), fallback=0))
+        if price > 0:
+            fast_info_ok = True
+    except Exception as e:
+        _logger.debug("fast_info failed for %s: %s", symbol, e)
+
+    # Step 2: Always get prev_close from history — fast_info.previous_close is
+    # unreliable (returns region-specific reference prices, not yesterday's close)
+    prev = 0
+    hist = None
+    try:
+        hist = ticker.history(period="5d")
+        if not hist.empty:
+            if len(hist) >= 2:
+                prev = round(float(hist.iloc[-2]['Close']), 2)
+            else:
+                prev = round(float(hist.iloc[-1]['Close']), 2)
+            # If fast_info price failed, use latest close from history
+            if not fast_info_ok:
+                latest = hist.iloc[-1]
+                price  = round(float(latest['Close']), 2)
+                opn    = round(float(latest['Open']),  2)
+                high   = round(float(latest['High']),  2)
+                low    = round(float(latest['Low']),   2)
+                volume = int(latest['Volume']) if not pd.isna(latest['Volume']) else 0
+    except Exception as hist_err:
+        _logger.debug("history failed for %s: %s", symbol, hist_err)
+
+    # Step 3: If still no price, try fallback providers
+    if price == 0:
+        _logger.warning("yfinance fully failed for %s, trying fallback providers...", symbol)
+        fb = _fetch_quote_fallback(symbol)
+        if fb:
+            _set_cached_quote(symbol, fb)
+            return fb
+        _logger.error("All data sources failed for %s, returning zeros", symbol)
+        return {"symbol": symbol.upper(), "price": 0, "change": 0, "change_pct": 0,
+                "prev_close": 0, "open": 0, "high": 0, "low": 0, "volume": 0}
+
+    if prev == 0:
+        prev = price  # safe fallback: change=0 rather than garbage
 
     change = round(_clean_float(price - prev), 2)
     change_pct = round((_clean_float(change / prev) * 100), 2) if prev else 0
