@@ -448,46 +448,53 @@ def _clean_quote(q: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 def _fetch_quote_stooq(symbol: str) -> dict | None:
-    """Fetch a quote from Stooq CSV endpoint (free, no API key).
-    Works for US tickers (e.g. AAPL) and NSE tickers (e.g. RELIANCE.NS).
-    Returns a quote dict on success, None on failure.
+    """Fetch a quote from Stooq daily-history CSV endpoint (free, no API key).
+    Uses 2 rows of history so we can compute a real prev_close for accurate change %.
+    Works for US tickers (e.g. AAPL) and NSE tickers (RELIANCE.NS → reliance.in).
     """
     try:
         # Stooq uses .IN for Indian NSE/BSE stocks, not .NS / .BO
         stooq_sym = symbol.lower().replace("-", ".")
         if stooq_sym.endswith(".ns") or stooq_sym.endswith(".bo"):
             stooq_sym = stooq_sym.rsplit(".", 1)[0] + ".in"
-        url = f"https://stooq.com/q/l/?s={stooq_sym}&f=sd2t2ohlcv&h&e=csv"
+        # Use daily history endpoint — returns multiple rows, newest last
+        url = f"https://stooq.com/q/d/l/?s={stooq_sym}&i=d"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=8) as resp:
             content = resp.read().decode("utf-8")
         reader = csv.DictReader(io.StringIO(content))
-        rows = list(reader)
+        rows = [r for r in reader if r.get("Close") and r["Close"] not in ("", "null", "N/D")]
         if not rows:
             return None
-        row = rows[-1]  # most recent row
+
+        row  = rows[-1]   # most recent day
+        prev_row = rows[-2] if len(rows) >= 2 else row  # previous day
+
         close = float(row.get("Close", 0) or 0)
         opn   = float(row.get("Open",  0) or 0)
         high  = float(row.get("High",  0) or 0)
         low   = float(row.get("Low",   0) or 0)
         vol   = int(float(row.get("Volume", 0) or 0))
+        prev  = float(prev_row.get("Close", 0) or 0)  # real yesterday close ✅
+
         if close == 0:
             return None
-        # Stooq gives only one day; use open as prev_close proxy when prev unavailable
-        prev = opn if opn > 0 else close
-        change = round(close - prev, 2)
+        if prev == 0:
+            prev = close  # safe: change=0 rather than garbage
+
+        change     = round(close - prev, 2)
         change_pct = round((change / prev * 100), 2) if prev else 0
         return _clean_quote({
             "symbol": symbol.upper(),
-            "price": round(close, 2),
-            "change": change,
+            "price":      round(close, 2),
+            "change":     change,
             "change_pct": change_pct,
             "prev_close": round(prev, 2),
-            "open": round(opn, 2),
-            "high": round(high, 2),
-            "low": round(low, 2),
-            "volume": vol,
-            "source": "stooq",
+            "open":       round(opn, 2),
+            "high":       round(high, 2),
+            "low":        round(low, 2),
+            "volume":     vol,
+            "source":     "stooq",
         })
     except Exception as exc:
         _logger.debug("Stooq fallback failed for %s: %s", symbol, exc)
@@ -581,15 +588,42 @@ def _fetch_quote_sync(symbol):
     ticker = yf.Ticker(symbol)
     try:
         info = ticker.fast_info
-        price = float(info.last_price) if hasattr(info, 'last_price') else 0
-        prev = float(info.previous_close) if hasattr(info, 'previous_close') else price
-        opn = float(info.open) if hasattr(info, 'open') else price
-        high = float(info.day_high) if hasattr(info, 'day_high') else price
-        low = float(info.day_low) if hasattr(info, 'day_low') else price
-        volume = int(info.last_volume) if hasattr(info, 'last_volume') else 0
-        # Guard against yfinance returning 0 for all fields (silent rate-limit)
+        price_raw = getattr(info, 'last_price', None)
+        prev_raw  = getattr(info, 'previous_close', None)
+        opn_raw   = getattr(info, 'open', None)
+        high_raw  = getattr(info, 'day_high', None)
+        low_raw   = getattr(info, 'day_low', None)
+        vol_raw   = getattr(info, 'last_volume', None)
+
+        def _safe(v, fallback=0.0):
+            """Convert to float, treating None/NaN/Inf as fallback."""
+            try:
+                f = float(v)
+                return fallback if (math.isnan(f) or math.isinf(f)) else f
+            except Exception:
+                return fallback
+
+        price  = _safe(price_raw)
+        prev   = _safe(prev_raw, fallback=0.0)   # 0 means "unknown"
+        opn    = _safe(opn_raw,  fallback=price)
+        high   = _safe(high_raw, fallback=price)
+        low    = _safe(low_raw,  fallback=price)
+        volume = int(_safe(vol_raw, fallback=0))
+
         if price == 0:
             raise ValueError("yfinance returned zero price (likely rate-limited)")
+
+        # If previous_close is unknown (0/NaN), fetch 2-day history to get it
+        if prev == 0:
+            _logger.debug("previous_close unavailable for %s, fetching history for prev_close", symbol)
+            try:
+                hist = ticker.history(period="5d")
+                if not hist.empty and len(hist) >= 2:
+                    prev = round(float(hist.iloc[-2]['Close']), 2)
+                elif not hist.empty:
+                    prev = round(float(hist.iloc[-1]['Close']), 2)
+            except Exception:
+                prev = price  # fallback: change=0 is safer than wrong value
     except Exception as yf_err:
         _logger.debug("yfinance fast_info failed for %s (%s), trying history...", symbol, yf_err)
         try:
